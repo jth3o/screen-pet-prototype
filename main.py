@@ -22,7 +22,7 @@ import random
 import sys
 from typing import Callable, Generator, Optional
 
-from PyQt6.QtCore import QElapsedTimer, QObject, QPoint, QRect, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QElapsedTimer, QPoint, QRect, QSize, Qt, QTimer
 from PyQt6.QtGui import (
     QAction,
     QColor,
@@ -270,13 +270,6 @@ class PetView(QWidget):
             RoutineName.JUMP: self._routine_jump,
         }[name]
         self._start_routine(factory)
-
-    def force_appear(self) -> None:
-        """Hotkey entry point. If the pet is idle, start a random routine;
-        if a routine is already in flight, leave it alone so rapid key-mashing
-        doesn't yank him back to the left edge mid-run."""
-        if self._routine is None:
-            self.trigger(random.choice(list(RoutineName)))
 
     # ---------- routine lifecycle ----------
 
@@ -650,60 +643,6 @@ class ControlPanel(QWidget):
         super().mouseReleaseEvent(e)
 
 
-# ---------- global hotkey ----------
-
-class GlobalHotkey(QObject):
-    """Listens system-wide for the '5' key via pynput and emits `triggered`
-    on the main thread (Qt marshals the signal via a queued connection because
-    the listener callback runs on pynput's worker thread).
-
-    On macOS this needs Accessibility / Input Monitoring permission. The first
-    time it runs, the OS will prompt; until you grant it, the listener simply
-    won't fire (no crash, no exception)."""
-
-    triggered = pyqtSignal()
-
-    def __init__(self, parent: Optional[QObject] = None) -> None:
-        super().__init__(parent)
-        self._listener = None  # type: ignore[assignment]
-
-    def start(self) -> bool:
-        try:
-            from pynput import keyboard  # type: ignore[import-not-found]
-        except Exception as e:  # noqa: BLE001
-            sys.stderr.write(
-                f"screen-pet: global hotkey disabled (pynput not importable: {e})\n"
-            )
-            return False
-
-        def on_press(key: object) -> None:
-            # KeyCode with a `char` attribute for printable keys; special keys
-            # (Key.shift, etc.) have no `char` — getattr handles both.
-            ch = getattr(key, "char", None)
-            if ch == "5":
-                # Emit across threads; Qt auto-queues this to the main thread.
-                self.triggered.emit()
-
-        try:
-            listener = keyboard.Listener(on_press=on_press)
-            listener.daemon = True
-            listener.start()
-        except Exception as e:  # noqa: BLE001
-            sys.stderr.write(f"screen-pet: global hotkey failed to start: {e}\n")
-            return False
-
-        self._listener = listener
-        return True
-
-    def stop(self) -> None:
-        if self._listener is not None:
-            try:
-                self._listener.stop()
-            except Exception:  # noqa: BLE001
-                pass
-            self._listener = None
-
-
 # ---------- tray icon ----------
 
 def _tray_icon_pixmap() -> QPixmap:
@@ -815,13 +754,6 @@ def main() -> int:
     app._panel = panel  # type: ignore[attr-defined]
 
     app._tray = _build_tray(app, pet, panel)  # type: ignore[attr-defined]
-
-    # Global "5" hotkey. Stored on the app so it isn't garbage-collected;
-    # the pynput listener lives in a daemon thread and will emit back here.
-    hotkey = GlobalHotkey()
-    hotkey.triggered.connect(pet.force_appear)
-    hotkey.start()
-    app._hotkey = hotkey  # type: ignore[attr-defined]
 
     if app.__dict__.get("_tray") is None and not QSystemTrayIcon.isSystemTrayAvailable():
         # With no tray and the pet hidden, there's no UI at all. Fall back to
