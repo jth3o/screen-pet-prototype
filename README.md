@@ -36,6 +36,10 @@ python main.py
 - The pet walks from left to right along the **bottom** of the primary display and wraps to the left when it reaches the right edge.
 - You can drag the window anywhere; when you resume, walking continues from that position.
 
+## Git / GitHub
+
+The default `origin` remote is **SSH** (`git@github.com:…/screen-pet-prototype.git`). For `git push` and `git pull` to work, add your public key to GitHub and ensure your key is available to the SSH agent (for example, `ssh -T git@github.com` should succeed). If SSH is not set up, you can push once with HTTPS or use the [GitHub CLI](https://cli.github.com/) (`gh auth login`).
+
 ## macOS and transparency
 
 On macOS, Qt uses a layered, translucent window (`WA_TranslucentBackground` plus `FramelessWindowHint`). The sprite is drawn in `paintEvent` on a fully transparent background. This combination works well on recent macOS and Qt6 builds.
