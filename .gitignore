@@ -71,3 +71,12 @@ Thumbs.db
 # Mypy / Ruff
 .mypy_cache/
 .ruff_cache/
+
+# sprite-slicer scratch and regeneratable previews
+sprites/_*.png
+sprites/cmp_*.png
+sprites/sheet_annotated*.png
+
+# Raw source sheet the user dropped at the repo root; the slicer uses the
+# copy inside sprites/pikmin_sheet.png.
+blue_pikmin_sprite_sheet_full__outdated__by_ryanfrogger_d30gdf5.png
