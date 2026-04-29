@@ -108,6 +108,7 @@ class RoutineName(enum.Enum):
     CROSS = "cross"
     SHAKE = "shake"
     JUMP = "jump"
+    EXIT_LEFT = "exit_left"
 
     @property
     def label(self) -> str:
@@ -115,6 +116,7 @@ class RoutineName(enum.Enum):
             "cross": "Walk across",
             "shake": "Shake in the middle",
             "jump": "Jump while running",
+            "exit_left": "Run to middle, exit left",
         }[self.value]
 
 
@@ -268,6 +270,7 @@ class PetView(QWidget):
             RoutineName.CROSS: self._routine_cross,
             RoutineName.SHAKE: self._routine_shake,
             RoutineName.JUMP: self._routine_jump,
+            RoutineName.EXIT_LEFT: self._routine_exit_left,
         }[name]
         self._start_routine(factory)
 
@@ -275,7 +278,7 @@ class PetView(QWidget):
 
     def _pick_random_routine(self) -> Callable[[], Routine]:
         return random.choice(
-            [self._routine_cross, self._routine_shake, self._routine_jump]
+            [self._routine_cross, self._routine_shake, self._routine_jump, self._routine_exit_left]
         )
 
     def _start_routine(self, factory: Callable[[], Routine]) -> None:
@@ -461,6 +464,27 @@ class PetView(QWidget):
             self._advance_walk_anim(dt)
             self._step_horizontal(dt)
 
+    def _routine_exit_left(self) -> Routine:
+        g = self._current_geometry()
+        self._enter_left(g)
+        middle_x = (g.left() + g.right()) / 2.0 - self.width() / 2.0
+        exit_x = g.left() - self.width() - EXIT_MARGIN_PX
+
+        # Run to the middle.
+        while self._fx < middle_x:
+            dt = (yield)
+            self._advance_walk_anim(dt)
+            self._step_horizontal(dt)
+
+        # Turn around and exit left.
+        self._direction = -1
+        self._walk_frame = 0
+        self._walk_acc_ms = 0
+        while self._fx > exit_x:
+            dt = (yield)
+            self._advance_walk_anim(dt)
+            self._step_horizontal(dt)
+
     # ---------- painting ----------
 
     def paintEvent(self, e: QPaintEvent) -> None:
@@ -522,6 +546,7 @@ ROUTINE_SHORT_LABEL = {
     RoutineName.CROSS: "Walk",
     RoutineName.SHAKE: "Shake",
     RoutineName.JUMP: "Jump",
+    RoutineName.EXIT_LEFT: "Exit Left",
 }
 
 PANEL_DEFAULT_MARGIN_PX = 16
